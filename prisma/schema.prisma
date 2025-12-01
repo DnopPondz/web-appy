@@ -65,3 +65,49 @@ model LoginLog {
   name      String?
   timestamp DateTime @default(now())
 }
+
+model Website {
+  id        String           @id @default(cuid())
+  name      String
+  url       String           @unique
+  server    String           @default("Default Server") // 🔥 เพิ่มบรรทัดนี้
+  createdAt DateTime         @default(now())
+  logs      MaintenanceLog[]
+}
+
+// ... (model MaintenanceLog เหมือนเดิม ไม่ต้องแก้)
+model MaintenanceLog {
+  id               String   @id @default(cuid())
+  websiteId        String
+  website          Website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  phpVersion       String
+  wordpressVersion String
+  dbVersion        String
+  plugins          String   @db.Text
+  theme            String?
+  note             String?  @db.Text
+  checkDate        DateTime @default(now())
+}
+
+model SupportPal {
+  id        String           @id @default(cuid())
+  name      String
+  url       String           @unique
+  server    String           @default("Default Server")
+  createdAt DateTime         @default(now())
+  logs      SupportPalLog[]
+}
+
+model SupportPalLog {
+  id           String     @id @default(cuid())
+  supportPalId String
+  supportPal   SupportPal @relation(fields: [supportPalId], references: [id], onDelete: Cascade)
+  
+  phpVersion   String
+  spVersion    String     // Support Pal Version
+  dbVersion    String
+  nginxVersion String     // Nginx Version
+  note         String?    @db.Text
+  
+  checkDate    DateTime   @default(now())
+}
