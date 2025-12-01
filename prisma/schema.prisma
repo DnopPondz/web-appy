@@ -23,6 +23,9 @@ model Account {
   scope              String?
   id_token           String?  @db.Text
   session_state      String?
+  
+  // 🔥 เพิ่มบรรทัดนี้ครับ
+  ext_expires_in     Int?     
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -53,4 +56,12 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// เพิ่มต่อท้ายไฟล์ prisma/schema.prisma
+model LoginLog {
+  id        String   @id @default(cuid())
+  email     String?
+  name      String?
+  timestamp DateTime @default(now())
 }

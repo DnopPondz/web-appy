@@ -12,6 +12,7 @@ export default function Sidebar() {
     { name: "Dashboard", path: "/" },
     { name: "Profile", path: "/profile" },
     { name: "Reports", path: "/reports" },
+    { name: "Log", path: "/log" },
   ];
 
   return (
