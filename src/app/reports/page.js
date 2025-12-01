@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Sidebar from "../components/Sidebar";
-import TopNavbar from "../components/TopNavbar";
+import AppLayout from "../components/AppLayout";
 
 export default function ReportsPage() {
   const [data, setData] = useState({ wpSites: [], spSites: [] });
@@ -46,7 +45,6 @@ export default function ReportsPage() {
     return lastCheck >= startOfMonth ? "Completed" : "Pending";
   };
 
-  // Helper สำหรับเทียบ Version ทั่วไป (Core/PHP/DB)
   const getVersionDiff = (current, prev) => {
     if (!prev || current === prev) return current;
     return (
@@ -65,17 +63,13 @@ export default function ReportsPage() {
   const spCompleted = data.spSites.filter(site => getSPStatus(site.logs[0]) === "Completed");
 
   const totalPending = wpPending.length + spPending.length;
-  // นับเฉพาะรายการที่ Completed ในหน้า Dashboard นี้
-  // (ถ้าต้องการนับทั้งหมดอาจจะต้องปรับ Logic API แต่เบื้องต้นนับตามที่แสดงผล)
   
-  if (loading) return <div className="flex h-screen bg-slate-50"><Sidebar /><div className="flex-1 flex items-center justify-center text-gray-500">Loading...</div></div>;
+  if (loading) return <div className="flex h-screen items-center justify-center bg-slate-50 text-gray-400">Loading...</div>;
 
   return (
-    <div className="flex h-screen bg-slate-50 font-sans text-gray-900">
-      <Sidebar />
+    <AppLayout>
       <div className="flex-1 flex flex-col overflow-hidden">
-        <TopNavbar />
-        <main className="flex-1 overflow-y-auto p-8">
+        <main className="flex-1 overflow-y-auto p-4 md:p-8">
           
           <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Maintenance Reports</h1>
           <p className="text-gray-500 mb-8">Summary of updates and pending tasks.</p>
@@ -95,19 +89,21 @@ export default function ReportsPage() {
                 <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center text-green-800">🎉 All systems are up to date!</div>
               ) : (
                 <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-                  <table className="min-w-full divide-y divide-gray-100">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">System</th>
-                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Type</th>
-                        <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {wpPending.map(site => <PendingRow key={site.id} name={site.name} type="WordPress" url={site.url} typeColor="bg-blue-100 text-blue-700" />)}
-                      {spPending.map(site => <PendingRow key={site.id} name={site.name} type="SupportPal" url={site.url} typeColor="bg-indigo-100 text-indigo-700" />)}
-                    </tbody>
-                  </table>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-100 whitespace-nowrap">
+                        <thead className="bg-gray-50">
+                        <tr>
+                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">System</th>
+                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Type</th>
+                            <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Action</th>
+                        </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                        {wpPending.map(site => <PendingRow key={site.id} name={site.name} type="WordPress" url={site.url} typeColor="bg-blue-100 text-blue-700" />)}
+                        {spPending.map(site => <PendingRow key={site.id} name={site.name} type="SupportPal" url={site.url} typeColor="bg-indigo-100 text-indigo-700" />)}
+                        </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </div>
@@ -117,7 +113,6 @@ export default function ReportsPage() {
               <SectionHeader title="✅ Recent Updates" subtitle="Version changes & plugin updates" />
               <div className="space-y-4">
                 
-                {/* WordPress Completed List */}
                 {wpCompleted.map(site => {
                     const latest = site.logs[0];
                     const prev = site.logs[1]; 
@@ -136,13 +131,12 @@ export default function ReportsPage() {
                                 </div>
                             }
                             plugins={latest.plugins}
-                            prevPlugins={prev?.plugins} // 🔥 ส่ง Plugin เก่าไปเทียบ
+                            prevPlugins={prev?.plugins}
                             badgeColor="bg-blue-100 text-blue-700"
                         />
                     );
                 })}
 
-                {/* SupportPal Completed List */}
                 {spCompleted.map(site => {
                     const latest = site.logs[0];
                     const prev = site.logs[1];
@@ -160,7 +154,7 @@ export default function ReportsPage() {
                                     <div>Nginx: {getVersionDiff(latest.nginxVersion, prev?.nginxVersion)}</div>
                                 </div>
                             }
-                            plugins={latest.plugins} // ใช้ฟิลด์เดียวกัน (ถ้า SP มี Plugin) หรือใส่ค่าว่างถ้าไม่มี
+                            plugins={latest.plugins}
                             prevPlugins={prev?.plugins}
                             badgeColor="bg-indigo-100 text-indigo-700"
                         />
@@ -178,7 +172,7 @@ export default function ReportsPage() {
           </div>
         </main>
       </div>
-    </div>
+    </AppLayout>
   );
 }
 
@@ -207,9 +201,7 @@ function PendingRow({ name, type, url, typeColor }) {
     )
 }
 
-// 🔥 Component แสดงการ์ดที่ทำเสร็จแล้ว พร้อมโชว์ Plugin Update
 function CompletedCard({ name, type, date, note, versions, plugins, prevPlugins, badgeColor }) {
-    // ฟังก์ชันแปลง String เป็น Array
     const parsePlugins = (str) => {
         try {
             const parsed = JSON.parse(str);
@@ -220,7 +212,6 @@ function CompletedCard({ name, type, date, note, versions, plugins, prevPlugins,
     const currentList = plugins ? parsePlugins(plugins) : [];
     const prevList = prevPlugins ? parsePlugins(prevPlugins) : [];
 
-    // หา Plugin ที่มีการเปลี่ยนแปลงเวอร์ชัน
     const updates = currentList.reduce((acc, curr) => {
         const prev = prevList.find(p => p.name === curr.name);
         if (prev && prev.version !== curr.version) {
@@ -239,12 +230,10 @@ function CompletedCard({ name, type, date, note, versions, plugins, prevPlugins,
                 <span className="text-xs text-gray-400">{new Date(date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
             </div>
 
-            {/* Versions Grid */}
             <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-600 font-mono mb-3 border border-gray-100">
                 {versions}
             </div>
 
-            {/* Note */}
             {note && (
                 <div className="mb-3">
                     <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Update Note:</p>
@@ -252,7 +241,6 @@ function CompletedCard({ name, type, date, note, versions, plugins, prevPlugins,
                 </div>
             )}
 
-            {/* 🔥 Plugin Updates Section */}
             {updates.length > 0 ? (
                 <div className="mt-3 border-t border-gray-100 pt-2 bg-green-50/30 -mx-5 px-5 pb-3">
                      <p className="text-[10px] font-bold text-green-700 uppercase mb-2 mt-2 flex items-center gap-1">

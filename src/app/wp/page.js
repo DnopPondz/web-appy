@@ -1,10 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Sidebar from "../components/Sidebar";
-import TopNavbar from "../components/TopNavbar";
+import AppLayout from "../components/AppLayout";
 
-// --- CSS Animation สำหรับ "เด้งดึ๋ง" ---
 const styles = `
   @keyframes springUp {
     0% { opacity: 0; transform: translateY(40px) scale(0.9); }
@@ -20,7 +18,6 @@ const styles = `
   .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 `;
 
-// --- 1. Component จัดการ Plugin (UI ปรับปรุง) ---
 function PluginManager({ plugins, setPlugins }) {
   const [tempName, setTempName] = useState("");
   const [tempVersion, setTempVersion] = useState("");
@@ -49,8 +46,6 @@ function PluginManager({ plugins, setPlugins }) {
       <label className="block text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
         🧩 Manage Plugins
       </label>
-      
-      {/* ช่องกรอกเพื่อเพิ่ม Plugin ใหม่ */}
       <div className="flex gap-2 mb-4">
         <input
           type="text"
@@ -76,8 +71,6 @@ function PluginManager({ plugins, setPlugins }) {
           Add
         </button>
       </div>
-
-      {/* รายการ Plugin */}
       <div className="bg-white border border-gray-200 rounded-xl divide-y divide-gray-100 max-h-48 overflow-y-auto shadow-sm custom-scrollbar">
         {plugins.length === 0 ? (
           <p className="text-gray-400 text-xs text-center py-6 italic">No plugins added yet.</p>
@@ -86,8 +79,6 @@ function PluginManager({ plugins, setPlugins }) {
             <div key={index} className="flex justify-between items-center px-4 py-3 hover:bg-blue-50 transition group">
               <div className="flex-1 text-sm text-gray-700 font-medium flex items-center gap-2">
                 <span className="truncate max-w-[180px] text-gray-800">{plugin.name}</span>
-                
-                {/* ช่องแก้ Version */}
                 <div className="flex items-center bg-gray-100 group-hover:bg-white border border-gray-200 rounded-md px-2 py-0.5 ml-auto mr-2 transition-colors">
                     <span className="text-[10px] text-gray-400 mr-1 select-none">v</span>
                     <input 
@@ -98,7 +89,6 @@ function PluginManager({ plugins, setPlugins }) {
                     />
                 </div>
               </div>
-
               <button
                 type="button"
                 onClick={() => handleDelete(index)}
@@ -115,12 +105,10 @@ function PluginManager({ plugins, setPlugins }) {
   );
 }
 
-// --- 2. Main Page Component ---
 export default function MaintenancePage() {
   const [websites, setWebsites] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -128,7 +116,6 @@ export default function MaintenancePage() {
   const [selectedWebsite, setSelectedWebsite] = useState(null);
   const [selectedLog, setSelectedLog] = useState(null); 
 
-  // Form State
   const [formData, setFormData] = useState({
     name: "", url: "", server: "", wordpressVersion: "", phpVersion: "", dbVersion: "", theme: "", note: "", plugins: []
   });
@@ -248,141 +235,135 @@ export default function MaintenancePage() {
   const pendingSites = totalSites - completedSites;
 
   return (
-    <div className="flex h-screen bg-slate-50 font-sans text-gray-900">
-      <style>{styles}</style> {/* Inject CSS Animation */}
-      <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <TopNavbar />
-        <main className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-          
-          {/* Header & Alert */}
-          <div className="mb-10 space-y-6">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-              <div>
-                <h1 className="text-3xl font-extrabold text-gray-800 tracking-tight">Website Maintenance</h1>
-                <p className="text-gray-500 mt-1">Monitor version compliance and system health.</p>
-              </div>
-              <button 
-                onClick={() => { resetForm(); setIsAddModalOpen(true); }} 
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-blue-500/30 font-semibold transition-all active:scale-95 flex items-center gap-2"
-              >
-                <span className="text-lg">+</span> Add New Website
-              </button>
-            </div>
-
-            {pendingSites > 0 && (
-              <div className="bg-red-50 border border-red-100 p-4 rounded-xl shadow-sm flex items-start gap-4 animate-spring-up">
-                <div className="bg-red-100 text-red-600 p-2 rounded-lg text-xl">⚠️</div>
-                <div>
-                  <h3 className="text-red-900 font-bold text-sm uppercase tracking-wide">Action Required</h3>
-                  <p className="text-red-700 text-sm mt-1">
-                    <strong className="font-extrabold underline decoration-2">{pendingSites} website(s)</strong> require maintenance this week. Please update them to ensure security.
-                  </p>
-                </div>
-              </div>
-            )}
+    <AppLayout>
+      <style>{styles}</style>
+      
+      {/* Header & Alert */}
+      <div className="mb-10 space-y-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-extrabold text-gray-800 tracking-tight">Website Maintenance</h1>
+            <p className="text-gray-500 mt-1">Monitor version compliance and system health.</p>
           </div>
+          <button 
+            onClick={() => { resetForm(); setIsAddModalOpen(true); }} 
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-blue-500/30 font-semibold transition-all active:scale-95 flex items-center gap-2 w-full md:w-auto justify-center"
+          >
+            <span className="text-lg">+</span> Add New Website
+          </button>
+        </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-            <StatCard title="Total Websites" value={totalSites} icon="🌐" color="text-blue-600" bg="bg-blue-50" />
-            <StatCard title="Completed This Week" value={completedSites} icon="✅" color="text-emerald-600" bg="bg-emerald-50" />
-            <StatCard title="Maintenance Due" value={pendingSites} icon="🚨" color="text-red-600" bg="bg-red-50" />
+        {pendingSites > 0 && (
+          <div className="bg-red-50 border border-red-100 p-4 rounded-xl shadow-sm flex items-start gap-4 animate-spring-up">
+            <div className="bg-red-100 text-red-600 p-2 rounded-lg text-xl">⚠️</div>
+            <div>
+              <h3 className="text-red-900 font-bold text-sm uppercase tracking-wide">Action Required</h3>
+              <p className="text-red-700 text-sm mt-1">
+                <strong className="font-extrabold underline decoration-2">{pendingSites} website(s)</strong> require maintenance this week. Please update them to ensure security.
+              </p>
+            </div>
           </div>
+        )}
+      </div>
 
-          {/* --- SERVER GROUPS & CARDS --- */}
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-                <div className="w-10 h-10 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-                Loading dashboard...
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        <StatCard title="Total Websites" value={totalSites} icon="🌐" color="text-blue-600" bg="bg-blue-50" />
+        <StatCard title="Completed This Week" value={completedSites} icon="✅" color="text-emerald-600" bg="bg-emerald-50" />
+        <StatCard title="Maintenance Due" value={pendingSites} icon="🚨" color="text-red-600" bg="bg-red-50" />
+      </div>
+
+      {/* --- SERVER GROUPS & CARDS --- */}
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+            <div className="w-10 h-10 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+            Loading dashboard...
+        </div>
+      ) : Object.keys(groupedWebsites).length === 0 ? (
+        <div className="text-center py-24 bg-white rounded-2xl border-2 border-dashed border-gray-200">
+          <p className="text-gray-400 text-lg">No websites found.</p>
+          <button onClick={() => { resetForm(); setIsAddModalOpen(true); }} className="text-blue-600 font-semibold hover:underline mt-2">Create your first website</button>
+        </div>
+      ) : (
+        Object.entries(groupedWebsites).map(([serverName, sites]) => (
+          <div key={serverName} className="mb-12 animate-spring-up">
+            <div className="flex items-center gap-3 mb-5 pl-1">
+              <div className="h-6 w-1.5 bg-blue-600 rounded-full shadow-sm"></div>
+              <h2 className="text-lg font-bold text-gray-700 uppercase tracking-wider">{serverName}</h2>
+              <span className="text-xs font-bold bg-gray-200 text-gray-600 px-2.5 py-1 rounded-full">{sites.length}</span>
             </div>
-          ) : Object.keys(groupedWebsites).length === 0 ? (
-            <div className="text-center py-24 bg-white rounded-2xl border-2 border-dashed border-gray-200">
-              <p className="text-gray-400 text-lg">No websites found.</p>
-              <button onClick={() => { resetForm(); setIsAddModalOpen(true); }} className="text-blue-600 font-semibold hover:underline mt-2">Create your first website</button>
-            </div>
-          ) : (
-            Object.entries(groupedWebsites).map(([serverName, sites]) => (
-              <div key={serverName} className="mb-12 animate-spring-up">
-                <div className="flex items-center gap-3 mb-5 pl-1">
-                  <div className="h-6 w-1.5 bg-blue-600 rounded-full shadow-sm"></div>
-                  <h2 className="text-lg font-bold text-gray-700 uppercase tracking-wider">{serverName}</h2>
-                  <span className="text-xs font-bold bg-gray-200 text-gray-600 px-2.5 py-1 rounded-full">{sites.length}</span>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {sites.map((site) => {
-                    const status = getStatus(site.logs);
-                    const log = site.logs?.[0] || {};
-                    const isNew = new Date(log.checkDate).getFullYear() < 2000;
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {sites.map((site) => {
+                const status = getStatus(site.logs);
+                const log = site.logs?.[0] || {};
+                const isNew = new Date(log.checkDate).getFullYear() < 2000;
 
-                    return (
-                      <div key={site.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col group">
-                        {/* Card Header */}
-                        <div className="p-6 border-b border-gray-50 flex justify-between items-start">
-                          <div className="overflow-hidden">
-                            <h3 className="font-bold text-gray-900 text-lg truncate pr-2 group-hover:text-blue-600 transition-colors" title={site.name}>{site.name}</h3>
-                            <a href={site.url} target="_blank" className="text-xs text-gray-400 hover:text-blue-500 hover:underline mt-1 block truncate transition-colors">{site.url}</a>
-                          </div>
-                          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[11px] font-bold uppercase tracking-wide whitespace-nowrap ${status.color}`}>
-                            <span className={`w-2 h-2 rounded-full ${status.dot}`}></span>
-                            {status.label}
-                          </div>
+                return (
+                  <div key={site.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col group">
+                    {/* Card Header */}
+                    <div className="p-6 border-b border-gray-50 flex justify-between items-start">
+                      <div className="overflow-hidden">
+                        <h3 className="font-bold text-gray-900 text-lg truncate pr-2 group-hover:text-blue-600 transition-colors" title={site.name}>{site.name}</h3>
+                        <a href={site.url} target="_blank" className="text-xs text-gray-400 hover:text-blue-500 hover:underline mt-1 block truncate transition-colors">{site.url}</a>
+                      </div>
+                      <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[11px] font-bold uppercase tracking-wide whitespace-nowrap ${status.color}`}>
+                        <span className={`w-2 h-2 rounded-full ${status.dot}`}></span>
+                        {status.label}
+                      </div>
+                    </div>
+
+                    {/* Card Body */}
+                    <div className="p-6 flex-1 bg-gradient-to-b from-white to-gray-50/30">
+                      <div className="grid grid-cols-2 gap-y-5 gap-x-4 text-sm">
+                        <div>
+                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">WP Version</p>
+                          <p className="font-semibold text-gray-700 bg-white border border-gray-100 px-2 py-1 rounded-md inline-block shadow-sm">{log.wordpressVersion || "-"}</p>
                         </div>
-
-                        {/* Card Body */}
-                        <div className="p-6 flex-1 bg-gradient-to-b from-white to-gray-50/30">
-                          <div className="grid grid-cols-2 gap-y-5 gap-x-4 text-sm">
-                            <div>
-                              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">WP Version</p>
-                              <p className="font-semibold text-gray-700 bg-white border border-gray-100 px-2 py-1 rounded-md inline-block shadow-sm">{log.wordpressVersion || "-"}</p>
-                            </div>
-                            <div>
-                              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">PHP Version</p>
-                              <p className="font-semibold text-gray-700 bg-white border border-gray-100 px-2 py-1 rounded-md inline-block shadow-sm">{log.phpVersion || "-"}</p>
-                            </div>
-                            <div className="col-span-2 pt-2 border-t border-gray-100 mt-2">
-                              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Last Checked</p>
-                              <p className={`text-sm font-medium ${isNew ? 'text-red-500' : 'text-gray-600'}`}>
-                                {log.checkDate && !isNew ? new Date(log.checkDate).toLocaleString("th-TH") : "Waiting for check"}
-                              </p>
-                            </div>
-                          </div>
+                        <div>
+                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">PHP Version</p>
+                          <p className="font-semibold text-gray-700 bg-white border border-gray-100 px-2 py-1 rounded-md inline-block shadow-sm">{log.phpVersion || "-"}</p>
                         </div>
-
-                        {/* Card Footer */}
-                        <div className="p-4 bg-white rounded-b-2xl border-t border-gray-100 flex justify-between items-center gap-2">
-                          <button onClick={() => openDetailModal(site)} className="text-gray-500 hover:text-gray-900 text-xs font-bold uppercase tracking-wide px-2 transition-colors">
-                            View Details
-                          </button>
-                          
-                          <div className="flex items-center gap-2">
-                            <button 
-                              onClick={() => openLogModal(site)} 
-                              className={`text-xs px-4 py-2 rounded-lg font-bold transition-all active:scale-95 shadow-sm ${
-                                status.label === "Completed" 
-                                  ? "bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100 hover:border-gray-300" 
-                                  : "bg-blue-600 text-white hover:bg-blue-700 shadow-blue-200"
-                              }`}
-                            >
-                              Maintenance
-                            </button>
-                            <button onClick={() => handleDelete(site.id)} className="w-8 h-8 flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Delete">
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                              </svg>
-                            </button>
-                          </div>
+                        <div className="col-span-2 pt-2 border-t border-gray-100 mt-2">
+                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Last Checked</p>
+                          <p className={`text-sm font-medium ${isNew ? 'text-red-500' : 'text-gray-600'}`}>
+                            {log.checkDate && !isNew ? new Date(log.checkDate).toLocaleString("th-TH") : "Waiting for check"}
+                          </p>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))
-          )}
-        </main>
-      </div>
+                    </div>
+
+                    {/* Card Footer */}
+                    <div className="p-4 bg-white rounded-b-2xl border-t border-gray-100 flex justify-between items-center gap-2">
+                      <button onClick={() => openDetailModal(site)} className="text-gray-500 hover:text-gray-900 text-xs font-bold uppercase tracking-wide px-2 transition-colors">
+                        View Details
+                      </button>
+                      
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => openLogModal(site)} 
+                          className={`text-xs px-4 py-2 rounded-lg font-bold transition-all active:scale-95 shadow-sm ${
+                            status.label === "Completed" 
+                              ? "bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100 hover:border-gray-300" 
+                              : "bg-blue-600 text-white hover:bg-blue-700 shadow-blue-200"
+                          }`}
+                        >
+                          Maintenance
+                        </button>
+                        <button onClick={() => handleDelete(site.id)} className="w-8 h-8 flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Delete">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))
+      )}
 
       {/* --- MODALS --- */}
       {isAddModalOpen && (
@@ -390,7 +371,7 @@ export default function MaintenancePage() {
           <div className="space-y-5">
             <div className="grid grid-cols-1 gap-5">
               <Input label="Website Name" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} placeholder="My Awesome Site" />
-              <div className="grid grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <Input label="URL" value={formData.url} onChange={(e) => setFormData({...formData, url: e.target.value})} placeholder="https://example.com" />
                 <Input label="Server Name" value={formData.server} onChange={(e) => setFormData({...formData, server: e.target.value})} placeholder="e.g. AWS-01" />
               </div>
@@ -498,7 +479,7 @@ export default function MaintenancePage() {
           </div>
         </Modal>
       )}
-    </div>
+    </AppLayout>
   );
 }
 
@@ -515,17 +496,11 @@ function StatCard({ title, value, icon, color, bg }) {
   );
 }
 
-// 🔥 Modal Component พร้อม Animation "Spring Up"
 function Modal({ title, subtitle, children, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 sm:p-0">
-      {/* Backdrop with Fade */}
       <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity duration-300" onClick={onClose}></div>
-
-      {/* Modal Content with Spring Animation */}
       <div className="relative bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col animate-spring-up transform origin-bottom overflow-hidden">
-        
-        {/* Header */}
         <div className="px-8 py-5 border-b border-gray-100 flex justify-between items-start bg-white z-10">
           <div>
             <h3 className="text-xl font-extrabold text-gray-800">{title}</h3>
@@ -533,8 +508,6 @@ function Modal({ title, subtitle, children, onClose }) {
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 bg-gray-100 hover:bg-gray-200 w-8 h-8 flex items-center justify-center rounded-full transition-all text-xl leading-none">&times;</button>
         </div>
-
-        {/* Scrollable Body */}
         <div className="p-8 overflow-y-auto custom-scrollbar">
           {children}
         </div>
