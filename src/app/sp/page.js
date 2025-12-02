@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import AppLayout from "../components/AppLayout";
+import toast from "react-hot-toast";
 
 const styles = `
   @keyframes springUp { 0% { opacity: 0; transform: translateY(40px) scale(0.9); } 50% { opacity: 1; transform: translateY(-5px) scale(1.02); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
@@ -14,6 +15,7 @@ const styles = `
 export default function SupportPalPage() {
   const [websites, setWebsites] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
   
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
@@ -40,7 +42,7 @@ export default function SupportPalPage() {
         const data = await res.json();
         setWebsites(data);
       }
-    } catch (error) { console.error("Failed to fetch", error); }
+    } catch (error) { toast.error("Failed to fetch websites"); }
     setLoading(false);
   };
 
@@ -48,39 +50,47 @@ export default function SupportPalPage() {
     if (!logs || logs.length === 0) {
         return { label: "Pending", color: "bg-red-50 text-red-700 border-red-200", dot: "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]" };
     }
-
     const lastCheck = new Date(logs[0].checkDate);
     const now = new Date();
-    
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     startOfMonth.setHours(0, 0, 0, 0);
 
-    if (lastCheck >= startOfMonth) {
-      return { label: "Completed", color: "bg-green-50 text-green-700", border: "border-green-200", dot: "bg-green-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" };
-    } else {
-      return { label: "Maintenance Due", color: "bg-red-50 text-red-700", border: "border-red-200", dot: "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]" };
-    }
+    return lastCheck >= startOfMonth 
+      ? { label: "Completed", color: "bg-green-50 text-green-700 border-green-200", dot: "bg-green-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" }
+      : { label: "Maintenance Due", color: "bg-red-50 text-red-700 border-red-200", dot: "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]" };
   };
 
   const handleDelete = async (id) => {
     if (!confirm("Are you sure you want to delete this website?")) return;
-    await fetch(`/api/supportpal/websites?id=${id}`, { method: "DELETE" });
+    const promise = fetch(`/api/supportpal/websites?id=${id}`, { method: "DELETE" });
+    toast.promise(promise, { loading: 'Deleting...', success: 'Deleted successfully', error: 'Failed to delete' });
+    await promise;
     fetchWebsites();
   };
 
   const handleSaveWebsite = async () => {
-    if(!formData.name || !formData.url) return alert("Please fill Name and URL");
-    await fetch("/api/supportpal/websites", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(formData) });
-    setIsAddModalOpen(false);
-    resetForm();
-    fetchWebsites();
+    if(!formData.name || !formData.url) return toast.error("Please fill Name and URL");
+    try {
+        const res = await fetch("/api/supportpal/websites", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(formData) });
+        if(res.ok) {
+            toast.success("Website added successfully!");
+            setIsAddModalOpen(false);
+            resetForm();
+            fetchWebsites();
+        } else { toast.error("Failed to add website"); }
+    } catch(err) { toast.error("Something went wrong"); }
   };
 
   const handleSaveLog = async () => {
-    const payload = { ...formData, supportPalId: selectedWebsite.id };
-    await fetch("/api/supportpal/maintenance", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-    setIsLogModalOpen(false);
-    fetchWebsites();
+    try {
+        const payload = { ...formData, supportPalId: selectedWebsite.id };
+        const res = await fetch("/api/supportpal/maintenance", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        if(res.ok) {
+            toast.success("Maintenance log saved!");
+            setIsLogModalOpen(false);
+            fetchWebsites();
+        } else { toast.error("Failed to save log"); }
+    } catch(err) { toast.error("Something went wrong"); }
   };
 
   const openLogModal = (site) => {
@@ -108,6 +118,13 @@ export default function SupportPalPage() {
   };
 
   const groupedWebsites = websites.reduce((groups, site) => {
+    const lowerSearch = searchTerm.toLowerCase();
+    const match = site.name.toLowerCase().includes(lowerSearch) || 
+                  site.url.toLowerCase().includes(lowerSearch) ||
+                  site.server.toLowerCase().includes(lowerSearch);
+
+    if (!match) return groups;
+
     const serverName = site.server || "Unassigned Server";
     if (!groups[serverName]) groups[serverName] = [];
     groups[serverName].push(site);
@@ -121,16 +138,24 @@ export default function SupportPalPage() {
   return (
     <AppLayout>
       <style>{styles}</style>
-      
       <div className="mb-10 space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-3xl font-extrabold text-gray-800 tracking-tight">Support Pal Maintenance</h1>
             <p className="text-gray-500 mt-1">Monthly maintenance tracking for Support Pal systems.</p>
           </div>
-          <button onClick={() => { resetForm(); setIsAddModalOpen(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-blue-500/30 font-semibold transition-all active:scale-95 flex items-center gap-2 w-full md:w-auto justify-center">
-            <span className="text-lg">+</span> Add Support Pal
-          </button>
+          <div className="flex gap-3 w-full md:w-auto">
+             <input 
+                type="text" 
+                placeholder="🔍 Search sites..." 
+                className="border border-gray-300 rounded-xl px-4 py-3 w-full md:w-64 focus:ring-2 focus:ring-blue-500 outline-none"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+             />
+             <button onClick={() => { resetForm(); setIsAddModalOpen(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-blue-500/30 font-semibold transition-all active:scale-95 flex items-center gap-2 justify-center whitespace-nowrap">
+                <span className="text-lg">+</span> Add New
+             </button>
+          </div>
         </div>
 
         {pendingSites > 0 && (
@@ -159,8 +184,8 @@ export default function SupportPalPage() {
         </div>
       ) : Object.keys(groupedWebsites).length === 0 ? (
         <div className="text-center py-24 bg-white rounded-2xl border-2 border-dashed border-gray-200">
-          <p className="text-gray-400 text-lg">No sites found.</p>
-          <button onClick={() => { resetForm(); setIsAddModalOpen(true); }} className="text-blue-600 font-semibold hover:underline mt-2">Add your first site</button>
+          <p className="text-gray-400 text-lg">No websites found matching your search.</p>
+          {searchTerm === "" && <button onClick={() => { resetForm(); setIsAddModalOpen(true); }} className="text-blue-600 font-semibold hover:underline mt-2">Add your first site</button>}
         </div>
       ) : (
         Object.entries(groupedWebsites).map(([serverName, sites]) => (
@@ -221,7 +246,6 @@ export default function SupportPalPage() {
         ))
       )}
 
-      {/* --- MODALS (เหมือนเดิม) --- */}
       {isAddModalOpen && (
         <Modal title="Add New Support Pal" onClose={() => setIsAddModalOpen(false)}>
           <div className="space-y-5">
@@ -314,7 +338,6 @@ export default function SupportPalPage() {
   );
 }
 
-// --- Helper Components ---
 function StatCard({ title, value, icon, color, bg }) {
   return (
     <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between transition-all hover:shadow-lg hover:-translate-y-1">

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import AppLayout from "../components/AppLayout";
+import toast from "react-hot-toast";
 
 const styles = `
   @keyframes springUp {
@@ -108,6 +109,7 @@ function PluginManager({ plugins, setPlugins }) {
 export default function MaintenancePage() {
   const [websites, setWebsites] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
   
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
@@ -132,7 +134,7 @@ export default function MaintenancePage() {
         const data = await res.json();
         setWebsites(data);
       }
-    } catch (error) { console.error("Failed to fetch", error); }
+    } catch (error) { toast.error("Failed to fetch websites"); }
     setLoading(false);
   };
 
@@ -146,56 +148,53 @@ export default function MaintenancePage() {
 
   const getStatus = (logs) => {
     if (!logs || logs.length === 0) {
-        return { 
-            label: "Pending", 
-            color: "bg-red-50 text-red-700 border-red-200", 
-            dot: "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]" 
-        };
+        return { label: "Pending", color: "bg-red-50 text-red-700 border-red-200", dot: "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]" };
     }
-
     const lastCheck = new Date(logs[0].checkDate);
     const now = new Date();
-    
     const day = now.getDay();
     const diff = now.getDate() - day + (day === 0 ? -6 : 1); 
     const monday = new Date(now.setDate(diff));
     monday.setHours(0, 0, 0, 0);
 
-    if (lastCheck >= monday) {
-      return { 
-          label: "Completed", 
-          color: "bg-emerald-50 text-emerald-700 border-emerald-200", 
-          dot: "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" 
-      };
-    } else {
-      return { 
-          label: "Maintenance Due", 
-          color: "bg-red-50 text-red-700 border-red-200", 
-          dot: "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]" 
-      };
-    }
+    return lastCheck >= monday 
+      ? { label: "Completed", color: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" }
+      : { label: "Maintenance Due", color: "bg-red-50 text-red-700 border-red-200", dot: "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]" };
   };
 
   const handleDelete = async (id) => {
     if (!confirm("Are you sure you want to delete this website?")) return;
-    await fetch(`/api/websites?id=${id}`, { method: "DELETE" });
+    const promise = fetch(`/api/websites?id=${id}`, { method: "DELETE" });
+    toast.promise(promise, { loading: 'Deleting...', success: 'Deleted successfully', error: 'Failed to delete' });
+    await promise;
     fetchWebsites();
   };
 
   const handleSaveWebsite = async () => {
-    if(!formData.name || !formData.url) return alert("Please fill Name and URL");
+    if(!formData.name || !formData.url) return toast.error("Please fill Name and URL");
     const payload = { ...formData, plugins: JSON.stringify(formData.plugins) };
-    await fetch("/api/websites", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-    setIsAddModalOpen(false);
-    resetForm();
-    fetchWebsites();
+    
+    try {
+        const res = await fetch("/api/websites", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        if(res.ok) {
+            toast.success("Website added successfully!");
+            setIsAddModalOpen(false);
+            resetForm();
+            fetchWebsites();
+        } else { toast.error("Failed to add website"); }
+    } catch(err) { toast.error("Something went wrong"); }
   };
 
   const handleSaveLog = async () => {
-    const payload = { ...formData, websiteId: selectedWebsite.id, plugins: JSON.stringify(formData.plugins) };
-    await fetch("/api/maintenance", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-    setIsLogModalOpen(false);
-    fetchWebsites();
+    try {
+        const payload = { ...formData, websiteId: selectedWebsite.id, plugins: JSON.stringify(formData.plugins) };
+        const res = await fetch("/api/maintenance", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        if(res.ok) {
+            toast.success("Maintenance log saved!");
+            setIsLogModalOpen(false);
+            fetchWebsites();
+        } else { toast.error("Failed to save log"); }
+    } catch(err) { toast.error("Something went wrong"); }
   };
 
   const openLogModal = (site) => {
@@ -224,6 +223,13 @@ export default function MaintenancePage() {
   };
 
   const groupedWebsites = websites.reduce((groups, site) => {
+    const lowerSearch = searchTerm.toLowerCase();
+    const match = site.name.toLowerCase().includes(lowerSearch) || 
+                  site.url.toLowerCase().includes(lowerSearch) ||
+                  site.server.toLowerCase().includes(lowerSearch);
+
+    if (!match) return groups;
+
     const serverName = site.server || "Unassigned Server";
     if (!groups[serverName]) groups[serverName] = [];
     groups[serverName].push(site);
@@ -237,20 +243,27 @@ export default function MaintenancePage() {
   return (
     <AppLayout>
       <style>{styles}</style>
-      
-      {/* Header & Alert */}
       <div className="mb-10 space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-3xl font-extrabold text-gray-800 tracking-tight">Website Maintenance</h1>
             <p className="text-gray-500 mt-1">Monitor version compliance and system health.</p>
           </div>
-          <button 
-            onClick={() => { resetForm(); setIsAddModalOpen(true); }} 
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-blue-500/30 font-semibold transition-all active:scale-95 flex items-center gap-2 w-full md:w-auto justify-center"
-          >
-            <span className="text-lg">+</span> Add New Website
-          </button>
+          <div className="flex gap-3 w-full md:w-auto">
+             <input 
+                type="text" 
+                placeholder="🔍 Search sites..." 
+                className="border border-gray-300 rounded-xl px-4 py-3 w-full md:w-64 focus:ring-2 focus:ring-blue-500 outline-none"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+             />
+             <button 
+                onClick={() => { resetForm(); setIsAddModalOpen(true); }} 
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-blue-500/30 font-semibold transition-all active:scale-95 flex items-center gap-2 justify-center whitespace-nowrap"
+             >
+                <span className="text-lg">+</span> Add New
+             </button>
+          </div>
         </div>
 
         {pendingSites > 0 && (
@@ -259,21 +272,19 @@ export default function MaintenancePage() {
             <div>
               <h3 className="text-red-900 font-bold text-sm uppercase tracking-wide">Action Required</h3>
               <p className="text-red-700 text-sm mt-1">
-                <strong className="font-extrabold underline decoration-2">{pendingSites} website(s)</strong> require maintenance this week. Please update them to ensure security.
+                <strong className="font-extrabold underline decoration-2">{pendingSites} website(s)</strong> require maintenance this week.
               </p>
             </div>
           </div>
         )}
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
         <StatCard title="Total Websites" value={totalSites} icon="🌐" color="text-blue-600" bg="bg-blue-50" />
         <StatCard title="Completed This Week" value={completedSites} icon="✅" color="text-emerald-600" bg="bg-emerald-50" />
         <StatCard title="Maintenance Due" value={pendingSites} icon="🚨" color="text-red-600" bg="bg-red-50" />
       </div>
 
-      {/* --- SERVER GROUPS & CARDS --- */}
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 text-gray-400">
             <div className="w-10 h-10 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin mb-4"></div>
@@ -281,8 +292,8 @@ export default function MaintenancePage() {
         </div>
       ) : Object.keys(groupedWebsites).length === 0 ? (
         <div className="text-center py-24 bg-white rounded-2xl border-2 border-dashed border-gray-200">
-          <p className="text-gray-400 text-lg">No websites found.</p>
-          <button onClick={() => { resetForm(); setIsAddModalOpen(true); }} className="text-blue-600 font-semibold hover:underline mt-2">Create your first website</button>
+          <p className="text-gray-400 text-lg">No websites found matching your search.</p>
+          {searchTerm === "" && <button onClick={() => { resetForm(); setIsAddModalOpen(true); }} className="text-blue-600 font-semibold hover:underline mt-2">Create your first website</button>}
         </div>
       ) : (
         Object.entries(groupedWebsites).map(([serverName, sites]) => (
@@ -301,7 +312,6 @@ export default function MaintenancePage() {
 
                 return (
                   <div key={site.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col group">
-                    {/* Card Header */}
                     <div className="p-6 border-b border-gray-50 flex justify-between items-start">
                       <div className="overflow-hidden">
                         <h3 className="font-bold text-gray-900 text-lg truncate pr-2 group-hover:text-blue-600 transition-colors" title={site.name}>{site.name}</h3>
@@ -313,7 +323,6 @@ export default function MaintenancePage() {
                       </div>
                     </div>
 
-                    {/* Card Body */}
                     <div className="p-6 flex-1 bg-gradient-to-b from-white to-gray-50/30">
                       <div className="grid grid-cols-2 gap-y-5 gap-x-4 text-sm">
                         <div>
@@ -333,28 +342,11 @@ export default function MaintenancePage() {
                       </div>
                     </div>
 
-                    {/* Card Footer */}
                     <div className="p-4 bg-white rounded-b-2xl border-t border-gray-100 flex justify-between items-center gap-2">
-                      <button onClick={() => openDetailModal(site)} className="text-gray-500 hover:text-gray-900 text-xs font-bold uppercase tracking-wide px-2 transition-colors">
-                        View Details
-                      </button>
-                      
+                      <button onClick={() => openDetailModal(site)} className="text-gray-500 hover:text-gray-900 text-xs font-bold uppercase tracking-wide px-2 transition-colors">View Details</button>
                       <div className="flex items-center gap-2">
-                        <button 
-                          onClick={() => openLogModal(site)} 
-                          className={`text-xs px-4 py-2 rounded-lg font-bold transition-all active:scale-95 shadow-sm ${
-                            status.label === "Completed" 
-                              ? "bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100 hover:border-gray-300" 
-                              : "bg-blue-600 text-white hover:bg-blue-700 shadow-blue-200"
-                          }`}
-                        >
-                          Maintenance
-                        </button>
-                        <button onClick={() => handleDelete(site.id)} className="w-8 h-8 flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Delete">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                          </svg>
-                        </button>
+                        <button onClick={() => openLogModal(site)} className={`text-xs px-4 py-2 rounded-lg font-bold transition-all active:scale-95 shadow-sm ${status.label === "Completed" ? "bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100" : "bg-blue-600 text-white hover:bg-blue-700 shadow-blue-200"}`}>Maintenance</button>
+                        <button onClick={() => handleDelete(site.id)} className="w-8 h-8 flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">🗑️</button>
                       </div>
                     </div>
                   </div>
@@ -365,7 +357,6 @@ export default function MaintenancePage() {
         ))
       )}
 
-      {/* --- MODALS --- */}
       {isAddModalOpen && (
         <Modal title="Add New Website" onClose={() => setIsAddModalOpen(false)}>
           <div className="space-y-5">
@@ -376,7 +367,6 @@ export default function MaintenancePage() {
                 <Input label="Server Name" value={formData.server} onChange={(e) => setFormData({...formData, server: e.target.value})} placeholder="e.g. AWS-01" />
               </div>
             </div>
-            
             <div className="border-t border-gray-100 pt-5">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Initial System Info</p>
               <div className="grid grid-cols-2 gap-5">
@@ -385,13 +375,10 @@ export default function MaintenancePage() {
                 <Input label="Database Ver." value={formData.dbVersion} onChange={(e) => setFormData({...formData, dbVersion: e.target.value})} />
                 <Input label="Theme Name" value={formData.theme} onChange={(e) => setFormData({...formData, theme: e.target.value})} />
               </div>
-              <div className="mt-5">
-                <PluginManager plugins={formData.plugins} setPlugins={(newPlugins) => setFormData({ ...formData, plugins: newPlugins })} />
-              </div>
+              <div className="mt-5"><PluginManager plugins={formData.plugins} setPlugins={(newPlugins) => setFormData({ ...formData, plugins: newPlugins })} /></div>
               <div className="mt-5">
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Initial Note</label>
-                <textarea className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition shadow-sm resize-none" rows="2" 
-                  value={formData.note} onChange={(e) => setFormData({...formData, note: e.target.value})}></textarea>
+                <textarea className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition shadow-sm resize-none" rows="2" value={formData.note} onChange={(e) => setFormData({...formData, note: e.target.value})}></textarea>
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-gray-100">
@@ -415,20 +402,14 @@ export default function MaintenancePage() {
                 <Input label="Database Ver." value={formData.dbVersion} onChange={(e) => setFormData({...formData, dbVersion: e.target.value})} />
                 <Input label="Theme Name" value={formData.theme} onChange={(e) => setFormData({...formData, theme: e.target.value})} />
               </div>
-              <div className="mt-2">
-                <PluginManager plugins={formData.plugins} setPlugins={(newPlugins) => setFormData({ ...formData, plugins: newPlugins })} />
-              </div>
+              <div className="mt-2"><PluginManager plugins={formData.plugins} setPlugins={(newPlugins) => setFormData({ ...formData, plugins: newPlugins })} /></div>
               <div className="mt-5">
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Maintenance Note</label>
-                <textarea className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition shadow-sm resize-none" rows="3" 
-                  placeholder="Describe tasks (e.g. Updated plugins, Backups)..." 
-                  value={formData.note} onChange={(e) => setFormData({...formData, note: e.target.value})}></textarea>
+                <textarea className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition shadow-sm resize-none" rows="3" placeholder="Describe tasks..." value={formData.note} onChange={(e) => setFormData({...formData, note: e.target.value})}></textarea>
               </div>
               <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-gray-100">
                 <button onClick={() => setIsLogModalOpen(false)} className="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition active:scale-95">Cancel</button>
-                <button onClick={handleSaveLog} className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 shadow-md hover:shadow-emerald-500/30 font-semibold transition active:scale-95 flex items-center gap-2">
-                  <span>Complete</span> ✅
-                </button>
+                <button onClick={handleSaveLog} className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 shadow-md hover:shadow-emerald-500/30 font-semibold transition active:scale-95 flex items-center gap-2"><span>Complete</span> ✅</button>
               </div>
            </div>
         </Modal>
@@ -483,14 +464,10 @@ export default function MaintenancePage() {
   );
 }
 
-// --- Helper Components ---
 function StatCard({ title, value, icon, color, bg }) {
   return (
     <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between transition-all hover:shadow-lg hover:-translate-y-1">
-      <div>
-        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">{title}</p>
-        <p className="text-3xl font-extrabold text-gray-800">{value}</p>
-      </div>
+      <div><p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">{title}</p><p className="text-3xl font-extrabold text-gray-800">{value}</p></div>
       <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl ${bg} ${color} shadow-inner`}>{icon}</div>
     </div>
   );
@@ -502,15 +479,10 @@ function Modal({ title, subtitle, children, onClose }) {
       <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity duration-300" onClick={onClose}></div>
       <div className="relative bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col animate-spring-up transform origin-bottom overflow-hidden">
         <div className="px-8 py-5 border-b border-gray-100 flex justify-between items-start bg-white z-10">
-          <div>
-            <h3 className="text-xl font-extrabold text-gray-800">{title}</h3>
-            {subtitle && <p className="text-sm text-blue-600 font-medium mt-0.5">{subtitle}</p>}
-          </div>
+          <div><h3 className="text-xl font-extrabold text-gray-800">{title}</h3>{subtitle && <p className="text-sm text-blue-600 font-medium mt-0.5">{subtitle}</p>}</div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 bg-gray-100 hover:bg-gray-200 w-8 h-8 flex items-center justify-center rounded-full transition-all text-xl leading-none">&times;</button>
         </div>
-        <div className="p-8 overflow-y-auto custom-scrollbar">
-          {children}
-        </div>
+        <div className="p-8 overflow-y-auto custom-scrollbar">{children}</div>
       </div>
     </div>
   );
@@ -520,13 +492,7 @@ function Input({ label, value, onChange, placeholder }) {
   return (
     <div>
       <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">{label}</label>
-      <input 
-        type="text" 
-        className="w-full border border-gray-200 bg-gray-50/50 rounded-xl px-4 py-2.5 text-sm text-gray-700 outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm placeholder:text-gray-400"
-        value={value} 
-        onChange={onChange} 
-        placeholder={placeholder} 
-      />
+      <input type="text" className="w-full border border-gray-200 bg-gray-50/50 rounded-xl px-4 py-2.5 text-sm text-gray-700 outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm placeholder:text-gray-400" value={value} onChange={onChange} placeholder={placeholder} />
     </div>
   );
 }
@@ -535,11 +501,7 @@ function DetailItem({ label, value, isLink }) {
   return (
     <div className="group">
       <span className="block text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">{label}</span>
-      {isLink ? (
-        <a href={value} target="_blank" rel="noreferrer" className="text-blue-600 hover:text-blue-800 hover:underline font-semibold break-all transition-colors">{value}</a>
-      ) : (
-        <span className="text-gray-800 font-medium group-hover:text-gray-900 transition-colors">{value || "-"}</span>
-      )}
+      {isLink ? <a href={value} target="_blank" rel="noreferrer" className="text-blue-600 hover:text-blue-800 hover:underline font-semibold break-all transition-colors">{value}</a> : <span className="text-gray-800 font-medium group-hover:text-gray-900 transition-colors">{value || "-"}</span>}
     </div>
   );
 }
