@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import AppLayout from "../components/AppLayout";
+import StatCard from "../components/StatCard"; // ✅ Import มาแล้ว
+import { Icons } from "../components/Icons";
 import toast from "react-hot-toast";
 
 const styles = `
@@ -12,6 +14,11 @@ const styles = `
   .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 `;
 
+const formatUrl = (url) => {
+  if (!url) return "#";
+  return url.startsWith("http") ? url : `https://${url}`;
+};
+
 export default function SupportPalPage() {
   const [websites, setWebsites] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,6 +28,9 @@ export default function SupportPalPage() {
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+
   const [selectedWebsite, setSelectedWebsite] = useState(null);
   const [selectedLog, setSelectedLog] = useState(null); 
 
@@ -48,7 +58,7 @@ export default function SupportPalPage() {
 
   const getStatus = (logs) => {
     if (!logs || logs.length === 0) {
-        return { label: "Pending", color: "bg-red-50 text-red-700 border-red-200", dot: "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]" };
+        return { label: "Pending", color: "bg-red-50 text-red-700 border-red-200", dot: "bg-red-500" };
     }
     const lastCheck = new Date(logs[0].checkDate);
     const now = new Date();
@@ -56,8 +66,8 @@ export default function SupportPalPage() {
     startOfMonth.setHours(0, 0, 0, 0);
 
     return lastCheck >= startOfMonth 
-      ? { label: "Completed", color: "bg-green-50 text-green-700 border-green-200", dot: "bg-green-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" }
-      : { label: "Maintenance Due", color: "bg-red-50 text-red-700 border-red-200", dot: "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]" };
+      ? { label: "Completed", color: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-500" }
+      : { label: "Maintenance Due", color: "bg-red-50 text-red-700 border-red-200", dot: "bg-red-500" };
   };
 
   const handleDelete = async (id) => {
@@ -68,9 +78,44 @@ export default function SupportPalPage() {
     fetchWebsites();
   };
 
+  const openAddModal = () => {
+    setIsEditing(false);
+    setEditingId(null);
+    resetForm();
+    setIsAddModalOpen(true);
+  };
+
+  const openEditModal = (site) => {
+    setIsEditing(true);
+    setEditingId(site.id);
+    const latest = site.logs?.[0] || {};
+    
+    setFormData({
+      name: site.name,
+      url: site.url,
+      server: site.server,
+      phpVersion: latest.phpVersion || "",
+      spVersion: latest.spVersion || "",
+      dbVersion: latest.dbVersion || "",
+      nginxVersion: latest.nginxVersion || "",
+      note: latest.note || "",
+    });
+    setIsAddModalOpen(true);
+  };
+
   const handleSaveWebsite = async () => {
     if(!formData.name || !formData.url) return toast.error("Please fill Name and URL");
     try {
+      if (isEditing) {
+        const payload = { id: editingId, name: formData.name, url: formData.url, server: formData.server };
+        const res = await fetch("/api/supportpal/websites", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        if(res.ok) {
+            toast.success("Website updated successfully!");
+            setIsAddModalOpen(false);
+            resetForm();
+            fetchWebsites();
+        } else { toast.error("Failed to update website"); }
+      } else {
         const res = await fetch("/api/supportpal/websites", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(formData) });
         if(res.ok) {
             toast.success("Website added successfully!");
@@ -78,6 +123,7 @@ export default function SupportPalPage() {
             resetForm();
             fetchWebsites();
         } else { toast.error("Failed to add website"); }
+      }
     } catch(err) { toast.error("Something went wrong"); }
   };
 
@@ -141,26 +187,34 @@ export default function SupportPalPage() {
       <div className="mb-10 space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-extrabold text-gray-800 tracking-tight">Support Pal Maintenance</h1>
+            <h1 className="text-3xl font-extrabold text-gray-800 tracking-tight flex items-center gap-3">
+              <Icons.SupportPal className="w-8 h-8 text-indigo-600" />
+              Support Pal Maintenance
+            </h1>
             <p className="text-gray-500 mt-1">Monthly maintenance tracking for Support Pal systems.</p>
           </div>
           <div className="flex gap-3 w-full md:w-auto">
-             <input 
-                type="text" 
-                placeholder="🔍 Search sites..." 
-                className="border border-gray-300 rounded-xl px-4 py-3 w-full md:w-64 focus:ring-2 focus:ring-blue-500 outline-none"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-             />
-             <button onClick={() => { resetForm(); setIsAddModalOpen(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-blue-500/30 font-semibold transition-all active:scale-95 flex items-center gap-2 justify-center whitespace-nowrap">
-                <span className="text-lg">+</span> Add New
+             <div className="relative w-full md:w-64">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
+                </div>
+                <input 
+                    type="text" 
+                    placeholder="Search sites..." 
+                    className="border border-gray-200 bg-white rounded-xl pl-10 pr-4 py-2.5 w-full focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none text-sm transition-all shadow-sm"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+             </div>
+             <button onClick={openAddModal} className="bg-gray-900 hover:bg-black text-white px-5 py-2.5 rounded-xl shadow-md font-semibold text-sm transition-all active:scale-95 flex items-center gap-2 whitespace-nowrap">
+                <span className="text-lg leading-none">+</span> New Site
              </button>
           </div>
         </div>
 
         {pendingSites > 0 && (
           <div className="bg-red-50 border border-red-100 p-4 rounded-xl shadow-sm flex items-start gap-4 animate-spring-up">
-            <div className="bg-red-100 text-red-600 p-2 rounded-lg text-xl">⚠️</div>
+            <div className="bg-red-100 text-red-600 p-2 rounded-lg"><Icons.AlertTriangle className="w-5 h-5" /></div>
             <div>
               <h3 className="text-red-900 font-bold text-sm uppercase tracking-wide">Monthly Action Required</h3>
               <p className="text-red-700 text-sm mt-1">
@@ -172,9 +226,9 @@ export default function SupportPalPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-        <StatCard title="Total Sites" value={totalSites} icon="🛠️" color="text-blue-600" bg="bg-blue-50" />
-        <StatCard title="Completed This Month" value={completedSites} icon="✅" color="text-emerald-600" bg="bg-emerald-50" />
-        <StatCard title="Due" value={pendingSites} icon="🚨" color="text-red-600" bg="bg-red-50" />
+        <StatCard title="Total Sites" value={totalSites} icon={<Icons.Globe className="w-6 h-6" />} color="text-blue-600" bg="bg-blue-50" />
+        <StatCard title="Completed This Month" value={completedSites} icon={<Icons.CheckCircle className="w-6 h-6" />} color="text-emerald-600" bg="bg-emerald-50" />
+        <StatCard title="Due" value={pendingSites} icon={<Icons.AlertTriangle className="w-6 h-6" />} color="text-red-600" bg="bg-red-50" />
       </div>
 
       {loading ? (
@@ -183,17 +237,20 @@ export default function SupportPalPage() {
             Loading dashboard...
         </div>
       ) : Object.keys(groupedWebsites).length === 0 ? (
-        <div className="text-center py-24 bg-white rounded-2xl border-2 border-dashed border-gray-200">
-          <p className="text-gray-400 text-lg">No websites found matching your search.</p>
-          {searchTerm === "" && <button onClick={() => { resetForm(); setIsAddModalOpen(true); }} className="text-blue-600 font-semibold hover:underline mt-2">Add your first site</button>}
+        <div className="text-center py-24 bg-white rounded-2xl border border-gray-200 border-dashed">
+          <div className="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300"><Icons.Globe className="w-8 h-8" /></div>
+          <p className="text-gray-500 text-base">No websites found.</p>
+          {searchTerm === "" && <button onClick={openAddModal} className="text-blue-600 font-semibold hover:underline mt-2 text-sm">Create your first site</button>}
         </div>
       ) : (
         Object.entries(groupedWebsites).map(([serverName, sites]) => (
-          <div key={serverName} className="mb-12 animate-spring-up">
-            <div className="flex items-center gap-3 mb-5 pl-1">
-              <div className="h-6 w-1.5 bg-blue-600 rounded-full shadow-sm"></div>
-              <h2 className="text-lg font-bold text-gray-700 uppercase tracking-wider">{serverName}</h2>
-              <span className="text-xs font-bold bg-gray-200 text-gray-600 px-2.5 py-1 rounded-full">{sites.length}</span>
+          <div key={serverName} className="mb-10 animate-spring-up">
+            <div className="flex items-center gap-3 mb-4 pl-1">
+              <div className="h-5 w-1 bg-indigo-500 rounded-full"></div>
+              <h2 className="text-base font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+                <Icons.Server className="w-4 h-4 text-gray-400" /> {serverName}
+              </h2>
+              <span className="text-xs font-bold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-md border border-gray-200">{sites.length}</span>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -203,39 +260,64 @@ export default function SupportPalPage() {
                 const isNew = new Date(log.checkDate).getFullYear() < 2000;
 
                 return (
-                  <div key={site.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col group">
-                    <div className="p-6 border-b border-gray-50 flex justify-between items-start">
-                      <div className="overflow-hidden">
-                        <h3 className="font-bold text-gray-900 text-lg truncate pr-2 group-hover:text-blue-600 transition-colors" title={site.name}>{site.name}</h3>
-                        <a href={site.url} target="_blank" className="text-xs text-gray-400 hover:text-blue-500 hover:underline mt-1 block truncate transition-colors">{site.url}</a>
+                  <div key={site.id} className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col group overflow-hidden">
+                    {/* Header */}
+                    <div className="p-5 border-b border-gray-50 flex justify-between items-start bg-white">
+                      <div className="overflow-hidden pr-2">
+                        <h3 className="font-bold text-gray-900 text-base truncate flex items-center gap-2" title={site.name}>
+                            <Icons.SupportPal className="w-4 h-4 text-indigo-500" />
+                            {site.name}
+                        </h3>
+                        <div className="flex items-center gap-2 mt-1.5">
+                            <UptimeBadge url={site.url} />
+                            <a href={formatUrl(site.url)} target="_blank" className="text-xs text-gray-400 hover:text-indigo-600 hover:underline block truncate transition-colors font-medium">{site.url}</a>
+                        </div>
                       </div>
-                      <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[11px] font-bold uppercase tracking-wide whitespace-nowrap ${status.color}`}>
-                        <span className={`w-2 h-2 rounded-full ${status.dot}`}></span>
+                      <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-bold uppercase tracking-wide whitespace-nowrap ${status.color} border-opacity-50`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${status.dot} shadow-sm`}></span>
                         {status.label}
                       </div>
                     </div>
 
-                    <div className="p-6 flex-1 bg-gradient-to-b from-white to-gray-50/30">
-                      <div className="grid grid-cols-2 gap-y-5 gap-x-4 text-sm">
-                        <InfoBox label="SP Version" value={log.spVersion} />
-                        <InfoBox label="PHP Version" value={log.phpVersion} />
-                        <InfoBox label="DB Version" value={log.dbVersion} />
-                        <InfoBox label="Nginx Version" value={log.nginxVersion} />
-                        
-                        <div className="col-span-2 pt-2 border-t border-gray-100 mt-2">
-                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Last Checked</p>
-                          <p className={`text-sm font-medium ${isNew ? 'text-red-500' : 'text-gray-600'}`}>
-                            {log.checkDate && !isNew ? new Date(log.checkDate).toLocaleString("th-TH") : "Waiting for check"}
-                          </p>
+                    {/* Stats */}
+                    <div className="p-5 flex-1 bg-white">
+                      <div className="flex divide-x divide-gray-100 text-center">
+                        <div className="flex-1 px-1">
+                            <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">SP Ver.</p>
+                            <p className="text-sm font-semibold text-gray-700">{log.spVersion || "-"}</p>
                         </div>
+                        <div className="flex-1 px-1">
+                            <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">PHP</p>
+                            <p className="text-sm font-semibold text-gray-700">{log.phpVersion || "-"}</p>
+                        </div>
+                        <div className="flex-1 px-1">
+                            <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">DB</p>
+                            <p className="text-sm font-semibold text-gray-700">{log.dbVersion || "-"}</p>
+                        </div>
+                      </div>
+                      <div className="mt-4 pt-3 border-t border-gray-50 flex items-center justify-between text-xs">
+                         <span className="text-gray-400 flex items-center gap-1"><Icons.Clock className="w-3 h-3" /> Last check:</span>
+                         <span className={`font-medium ${isNew ? 'text-gray-300' : 'text-gray-600'}`}>
+                            {log.checkDate && !isNew ? new Date(log.checkDate).toLocaleDateString() : "Never"}
+                         </span>
                       </div>
                     </div>
 
-                    <div className="p-4 bg-white rounded-b-2xl border-t border-gray-100 flex justify-between items-center gap-2">
-                      <button onClick={() => openDetailModal(site)} className="text-gray-500 hover:text-gray-900 text-xs font-bold uppercase tracking-wide px-2 transition-colors">View Details</button>
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => openLogModal(site)} className={`text-xs px-4 py-2 rounded-lg font-bold transition-all active:scale-95 shadow-sm ${status.label === "Completed" ? "bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100" : "bg-blue-600 text-white hover:bg-blue-700 shadow-blue-200"}`}>Maintenance</button>
-                        <button onClick={() => handleDelete(site.id)} className="w-8 h-8 flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">🗑️</button>
+                    {/* Footer */}
+                    <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
+                      <button onClick={() => openDetailModal(site)} className="text-gray-500 hover:text-gray-800 text-xs font-bold uppercase px-2 py-1 rounded hover:bg-gray-100 transition-colors">Details</button>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => openEditModal(site)} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-white rounded-lg transition-all border border-transparent hover:border-gray-200 hover:shadow-sm" title="Edit">
+                          <Icons.Edit className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleDelete(site.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-white rounded-lg transition-all border border-transparent hover:border-gray-200 hover:shadow-sm" title="Delete">
+                          <Icons.Trash className="w-4 h-4" />
+                        </button>
+                        <div className="w-px h-4 bg-gray-200 mx-1"></div>
+                        <button onClick={() => openLogModal(site)} className={`ml-1 text-xs px-3 py-1.5 rounded-lg font-bold transition-all active:scale-95 flex items-center gap-1.5 shadow-sm ${status.label === "Completed" ? "bg-white border border-gray-200 text-gray-500 hover:text-gray-700 hover:border-gray-300" : "bg-gray-900 border border-transparent text-white hover:bg-black shadow-md"}`}>
+                          <Icons.Wrench className="w-3 h-3" />
+                          <span>Fix</span>
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -246,8 +328,9 @@ export default function SupportPalPage() {
         ))
       )}
 
+      {/* --- Modals --- */}
       {isAddModalOpen && (
-        <Modal title="Add New Support Pal" onClose={() => setIsAddModalOpen(false)}>
+        <Modal title={isEditing ? "Edit Support Pal" : "Add New Support Pal"} onClose={() => setIsAddModalOpen(false)}>
           <div className="space-y-5">
             <div className="grid grid-cols-1 gap-5">
               <Input label="Site Name" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} placeholder="Support Portal" />
@@ -256,24 +339,27 @@ export default function SupportPalPage() {
                 <Input label="Server Name" value={formData.server} onChange={(e) => setFormData({...formData, server: e.target.value})} placeholder="e.g. DigitalOcean-01" />
               </div>
             </div>
-            
-            <div className="border-t border-gray-100 pt-5">
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Initial System Info</p>
-              <div className="grid grid-cols-2 gap-5">
-                <Input label="SP Version" value={formData.spVersion} onChange={(e) => setFormData({...formData, spVersion: e.target.value})} />
-                <Input label="PHP Version" value={formData.phpVersion} onChange={(e) => setFormData({...formData, phpVersion: e.target.value})} />
-                <Input label="DB Version" value={formData.dbVersion} onChange={(e) => setFormData({...formData, dbVersion: e.target.value})} />
-                <Input label="Nginx Version" value={formData.nginxVersion} onChange={(e) => setFormData({...formData, nginxVersion: e.target.value})} />
+            {!isEditing && (
+              <div className="border-t border-gray-100 pt-5 animate-fadeIn">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Initial System Info</p>
+                <div className="grid grid-cols-2 gap-5">
+                  <Input label="SP Version" value={formData.spVersion} onChange={(e) => setFormData({...formData, spVersion: e.target.value})} />
+                  <Input label="PHP Version" value={formData.phpVersion} onChange={(e) => setFormData({...formData, phpVersion: e.target.value})} />
+                  <Input label="DB Version" value={formData.dbVersion} onChange={(e) => setFormData({...formData, dbVersion: e.target.value})} />
+                  <Input label="Nginx Version" value={formData.nginxVersion} onChange={(e) => setFormData({...formData, nginxVersion: e.target.value})} />
+                </div>
+                <div className="mt-5">
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Initial Note</label>
+                  <textarea className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition shadow-sm resize-none" rows="2" 
+                    value={formData.note} onChange={(e) => setFormData({...formData, note: e.target.value})}></textarea>
+                </div>
               </div>
-              <div className="mt-5">
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Initial Note</label>
-                <textarea className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition shadow-sm resize-none" rows="2" 
-                  value={formData.note} onChange={(e) => setFormData({...formData, note: e.target.value})}></textarea>
-              </div>
-            </div>
+            )}
             <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-gray-100">
-              <button onClick={() => setIsAddModalOpen(false)} className="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition active:scale-95">Cancel</button>
-              <button onClick={handleSaveWebsite} className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-md hover:shadow-lg font-semibold transition active:scale-95">Save Site</button>
+              <button onClick={() => setIsAddModalOpen(false)} className="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition active:scale-95 text-sm">Cancel</button>
+              <button onClick={handleSaveWebsite} className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-md hover:shadow-lg font-semibold transition active:scale-95 text-sm">
+                {isEditing ? "Update Site" : "Save Site"}
+              </button>
             </div>
           </div>
         </Modal>
@@ -282,8 +368,8 @@ export default function SupportPalPage() {
       {isLogModalOpen && (
         <Modal title={`Perform Maintenance`} subtitle={selectedWebsite?.name} onClose={() => setIsLogModalOpen(false)}>
            <div className="space-y-5">
-              <div className="p-4 bg-blue-50 border border-blue-100 text-blue-800 text-sm rounded-xl flex items-start gap-3">
-                <span className="text-xl">🛠️</span> 
+              <div className="p-4 bg-indigo-50 border border-indigo-100 text-indigo-800 text-sm rounded-xl flex items-start gap-3">
+                <span className="text-xl mt-0.5"><Icons.Wrench className="w-5 h-5" /></span> 
                 <div className="mt-0.5">You are in <strong>Maintenance Mode</strong>. Update versions below to complete this <u>month's</u> check.</div>
               </div>
               <div className="grid grid-cols-2 gap-5">
@@ -294,15 +380,11 @@ export default function SupportPalPage() {
               </div>
               <div className="mt-5">
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Maintenance Note</label>
-                <textarea className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition shadow-sm resize-none" rows="3" 
-                  placeholder="Describe tasks..." 
-                  value={formData.note} onChange={(e) => setFormData({...formData, note: e.target.value})}></textarea>
+                <textarea className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition shadow-sm resize-none" rows="3" placeholder="Describe tasks..." value={formData.note} onChange={(e) => setFormData({...formData, note: e.target.value})}></textarea>
               </div>
               <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-gray-100">
-                <button onClick={() => setIsLogModalOpen(false)} className="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition active:scale-95">Cancel</button>
-                <button onClick={handleSaveLog} className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 shadow-md hover:shadow-emerald-500/30 font-semibold transition active:scale-95 flex items-center gap-2">
-                  <span>Complete</span> ✅
-                </button>
+                <button onClick={() => setIsLogModalOpen(false)} className="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition active:scale-95 text-sm">Cancel</button>
+                <button onClick={handleSaveLog} className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 shadow-md hover:shadow-emerald-500/30 font-semibold transition active:scale-95 flex items-center gap-2 text-sm"><span>Complete</span> <Icons.CheckCircle className="w-4 h-4" /></button>
               </div>
            </div>
         </Modal>
@@ -319,17 +401,16 @@ export default function SupportPalPage() {
               <DetailItem label="DB Version" value={selectedLog?.dbVersion} />
               <DetailItem label="Nginx Version" value={selectedLog?.nginxVersion} />
               <DetailItem label="Last Check" value={selectedLog?.checkDate ? new Date(selectedLog.checkDate).toLocaleString() : "-"} />
+              <DetailItem label="Updated By" value={selectedLog?.actionBy || "-"} />
             </div>
-            
             {selectedLog?.note && (
               <div className="bg-yellow-50 p-5 rounded-xl border border-yellow-200 shadow-sm">
-                <h4 className="text-xs font-bold text-yellow-800 uppercase mb-2 tracking-wide">📝 Latest Maintenance Note</h4>
+                <h4 className="text-xs font-bold text-yellow-800 uppercase mb-2 tracking-wide flex items-center gap-1"><Icons.Edit className="w-3 h-3" /> Maintenance Note</h4>
                 <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{selectedLog.note}</p>
               </div>
             )}
-            
             <div className="flex justify-end mt-8">
-              <button onClick={() => setIsDetailModalOpen(false)} className="px-6 py-2.5 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg font-medium transition active:scale-95">Close</button>
+              <button onClick={() => setIsDetailModalOpen(false)} className="px-6 py-2.5 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg font-medium transition active:scale-95 text-sm">Close</button>
             </div>
           </div>
         </Modal>
@@ -338,15 +419,8 @@ export default function SupportPalPage() {
   );
 }
 
-function StatCard({ title, value, icon, color, bg }) {
-  return (
-    <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between transition-all hover:shadow-lg hover:-translate-y-1">
-      <div><p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">{title}</p><p className="text-3xl font-extrabold text-gray-800">{value}</p></div>
-      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl ${bg} ${color} shadow-inner`}>{icon}</div>
-    </div>
-  );
-}
-
+// ... Helper Components ...
+// ✅ ลบ function StatCard ออก เพราะ Import มาแล้ว
 function Modal({ title, subtitle, children, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 sm:p-0">
@@ -366,7 +440,7 @@ function Input({ label, value, onChange, placeholder }) {
   return (
     <div>
       <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">{label}</label>
-      <input type="text" className="w-full border border-gray-200 bg-gray-50/50 rounded-xl px-4 py-2.5 text-sm text-gray-700 outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm placeholder:text-gray-400" value={value} onChange={onChange} placeholder={placeholder} />
+      <input type="text" className="w-full border border-gray-200 bg-gray-50/50 rounded-xl px-4 py-2.5 text-sm text-gray-700 outline-none focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-sm placeholder:text-gray-400" value={value} onChange={onChange} placeholder={placeholder} />
     </div>
   );
 }
@@ -375,11 +449,31 @@ function DetailItem({ label, value, isLink }) {
   return (
     <div className="group">
       <span className="block text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">{label}</span>
-      {isLink ? <a href={value} target="_blank" rel="noreferrer" className="text-blue-600 hover:text-blue-800 hover:underline font-semibold break-all transition-colors">{value}</a> : <span className="text-gray-800 font-medium group-hover:text-gray-900 transition-colors">{value || "-"}</span>}
+      {isLink ? <a href={formatUrl(value)} target="_blank" rel="noreferrer" className="text-indigo-600 hover:text-indigo-800 hover:underline font-semibold break-all transition-colors">{value}</a> : <span className="text-gray-800 font-medium group-hover:text-gray-900 transition-colors">{value || "-"}</span>}
     </div>
   );
 }
 
+function UptimeBadge({ url }) {
+  const [status, setStatus] = useState("loading");
+
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const res = await fetch(`/api/uptime?url=${encodeURIComponent(formatUrl(url))}`);
+        const data = await res.json();
+        setStatus(data.status === "up" ? "up" : "down");
+      } catch { setStatus("down"); }
+    };
+    check();
+  }, [url]);
+
+  if (status === "loading") return <span className="w-2.5 h-2.5 rounded-full bg-gray-300 animate-pulse" title="Checking..."></span>;
+  if (status === "up") return <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" title="Online"></span>;
+  return <span className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]" title="Offline"></span>;
+}
+
+// ✅ เพิ่ม InfoBox ที่หายไป
 function InfoBox({ label, value }) {
     return (
         <div>

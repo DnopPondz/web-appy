@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../../auth/[...nextauth]/route";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route"; // แก้เป็น @
 
 export async function POST(req) {
   try {
@@ -11,6 +11,9 @@ export async function POST(req) {
     const body = await req.json();
     const { supportPalId, phpVersion, spVersion, dbVersion, nginxVersion, note } = body;
 
+    // ดึงชื่อคนทำรายการ
+    const actionBy = session.user.name || session.user.email || "Unknown";
+
     const newLog = await prisma.supportPalLog.create({
       data: {
         supportPalId,
@@ -19,12 +22,14 @@ export async function POST(req) {
         dbVersion,
         nginxVersion,
         note: note || "",
+        actionBy,
         checkDate: new Date(),
       },
     });
 
     return NextResponse.json(newLog);
   } catch (error) {
+    console.error("❌ API Error (POST /sp/maintenance):", error); // เพิ่ม Log
     return NextResponse.json({ error: "Failed to save log" }, { status: 500 });
   }
 }

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../../auth/[...nextauth]/route"; // Note: path ถอยหลัง 2 ชั้น
+// เปลี่ยนมาใช้ @ (Alias) เพื่อความชัวร์ในการระบุตำแหน่งไฟล์
+import { authOptions } from "@/app/api/auth/[...nextauth]/route"; 
 
 async function checkAuth() {
   const session = await getServerSession(authOptions);
@@ -12,16 +13,23 @@ async function checkAuth() {
 export async function GET() {
   try {
     await checkAuth();
+    
     const sites = await prisma.supportPal.findMany({
       include: {
         logs: { orderBy: { checkDate: "desc" }, take: 1 },
       },
       orderBy: [{ server: 'asc' }, { createdAt: 'desc' }]
     });
+    
     return NextResponse.json(sites);
   } catch (error) {
-    if (error.message === "Unauthorized") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    return NextResponse.json({ error: "Failed to fetch" }, { status: 500 });
+    // 🔥 เพิ่ม console.error เพื่อให้เห็นปัญหาจริงใน Terminal
+    console.error("❌ API Error (GET /sp/websites):", error);
+    
+    if (error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    return NextResponse.json({ error: "Failed to fetch websites" }, { status: 500 });
   }
 }
 
@@ -50,6 +58,7 @@ export async function POST(req) {
     });
     return NextResponse.json(newSite);
   } catch (error) {
+    console.error("❌ API Error (POST /sp/websites):", error);
     if (error.message === "Unauthorized") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     return NextResponse.json({ error: "Failed to create" }, { status: 500 });
   }
@@ -65,6 +74,7 @@ export async function DELETE(req) {
     await prisma.supportPal.delete({ where: { id } });
     return NextResponse.json({ message: "Deleted" });
   } catch (error) {
+    console.error("❌ API Error (DELETE /sp/websites):", error);
     if (error.message === "Unauthorized") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     return NextResponse.json({ error: "Failed to delete" }, { status: 500 });
   }

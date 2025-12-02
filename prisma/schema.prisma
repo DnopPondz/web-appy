@@ -86,6 +86,9 @@ model MaintenanceLog {
   plugins          String   @db.Text
   theme            String?
   note             String?  @db.Text
+  
+  actionBy         String?  // 🔥 เพิ่ม: เก็บชื่อคนทำรายการ (เช่น "John Doe")
+  
   checkDate        DateTime @default(now())
 }
 
@@ -104,10 +107,12 @@ model SupportPalLog {
   supportPal   SupportPal @relation(fields: [supportPalId], references: [id], onDelete: Cascade)
   
   phpVersion   String
-  spVersion    String     // Support Pal Version
+  spVersion    String
   dbVersion    String
-  nginxVersion String     // Nginx Version
+  nginxVersion String
   note         String?    @db.Text
+  
+  actionBy     String?    // 🔥 เพิ่ม: เก็บชื่อคนทำรายการ
   
   checkDate    DateTime   @default(now())
 }

@@ -11,6 +11,9 @@ export async function POST(req) {
     const body = await req.json();
     const { websiteId, phpVersion, wordpressVersion, dbVersion, plugins, theme, note } = body;
 
+    // 🔥 บันทึก actionBy จาก session.user.name หรือ email
+    const actionBy = session.user.name || session.user.email || "Unknown";
+
     const newLog = await prisma.maintenanceLog.create({
       data: {
         websiteId,
@@ -20,6 +23,7 @@ export async function POST(req) {
         plugins,
         theme,
         note: note || "",
+        actionBy, // ✅ Save User
         checkDate: new Date(),
       },
     });

@@ -58,20 +58,40 @@ export default function ReportsPage() {
   };
 
   const downloadCSV = () => {
-    const headers = ["System", "Name", "URL", "Server", "Status", "Last Check Date", "Note"];
+    const headers = ["System", "Name", "URL", "Server", "Status", "Last Check Date", "Updated By", "Note"];
     const rows = [];
 
+    // รวมข้อมูล WP
     data.wpSites.forEach(site => {
        const log = site.logs[0] || {};
-       rows.push(["WordPress", site.name, site.url, site.server, getWPStatus(log), log.checkDate || "-", `"${log.note || ""}"`]);
+       rows.push([
+         "WordPress", 
+         site.name, 
+         site.url, 
+         site.server, 
+         getWPStatus(log), 
+         log.checkDate || "-", 
+         log.actionBy || "Unknown", // Export ชื่อคนทำ
+         `"${log.note || ""}"`
+        ]);
     });
 
+    // รวมข้อมูล SP
     data.spSites.forEach(site => {
        const log = site.logs[0] || {};
-       rows.push(["SupportPal", site.name, site.url, site.server, getSPStatus(log), log.checkDate || "-", `"${log.note || ""}"`]);
+       rows.push([
+         "SupportPal", 
+         site.name, 
+         site.url, 
+         site.server, 
+         getSPStatus(log), 
+         log.checkDate || "-", 
+         log.actionBy || "Unknown",
+         `"${log.note || ""}"`
+        ]);
     });
 
-    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" 
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" // BOM for Thai support
         + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
     
     const encodedUri = encodeURI(csvContent);
@@ -118,7 +138,8 @@ export default function ReportsPage() {
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-            {/* Left: Action Required */}
+            
+            {/* --- Left: Action Required --- */}
             <div className="space-y-8">
               <SectionHeader title="⚠️ Action Required" subtitle="Websites that need maintenance" />
               {totalPending === 0 ? (
@@ -144,43 +165,77 @@ export default function ReportsPage() {
               )}
             </div>
 
-            {/* Right: Activity Log */}
+            {/* --- Right: Activity Log --- */}
             <div className="space-y-8">
               <SectionHeader title="✅ Recent Updates" subtitle="Version changes & plugin updates" />
               <div className="space-y-4">
+                
                 {wpCompleted.map(site => {
                     const latest = site.logs[0];
                     const prev = site.logs[1]; 
+
                     return (
                         <CompletedCard 
-                            key={site.id} name={site.name} type="WordPress" date={latest.checkDate} note={latest.note}
-                            versions={<div className="grid grid-cols-2 gap-2"><div>WP: {getVersionDiff(latest.wordpressVersion, prev?.wordpressVersion)}</div><div>PHP: {getVersionDiff(latest.phpVersion, prev?.phpVersion)}</div></div>}
-                            plugins={latest.plugins} prevPlugins={prev?.plugins} badgeColor="bg-blue-100 text-blue-700"
+                            key={site.id}
+                            name={site.name}
+                            type="WordPress"
+                            date={latest.checkDate}
+                            note={latest.note}
+                            versions={
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div>WP: {getVersionDiff(latest.wordpressVersion, prev?.wordpressVersion)}</div>
+                                    <div>PHP: {getVersionDiff(latest.phpVersion, prev?.phpVersion)}</div>
+                                </div>
+                            }
+                            plugins={latest.plugins}
+                            prevPlugins={prev?.plugins}
+                            badgeColor="bg-blue-100 text-blue-700"
+                            actionBy={latest.actionBy} // 🔥 ส่งชื่อคนทำไปแสดง
                         />
                     );
                 })}
+
                 {spCompleted.map(site => {
                     const latest = site.logs[0];
                     const prev = site.logs[1];
+
                     return (
                         <CompletedCard 
-                            key={site.id} name={site.name} type="SupportPal" date={latest.checkDate} note={latest.note}
-                            versions={<div className="grid grid-cols-2 gap-2"><div>SP: {getVersionDiff(latest.spVersion, prev?.spVersion)}</div><div>Nginx: {getVersionDiff(latest.nginxVersion, prev?.nginxVersion)}</div></div>}
-                            plugins={latest.plugins} prevPlugins={prev?.plugins} badgeColor="bg-indigo-100 text-indigo-700"
+                            key={site.id}
+                            name={site.name}
+                            type="SupportPal"
+                            date={latest.checkDate}
+                            note={latest.note}
+                            versions={
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div>SP: {getVersionDiff(latest.spVersion, prev?.spVersion)}</div>
+                                    <div>Nginx: {getVersionDiff(latest.nginxVersion, prev?.nginxVersion)}</div>
+                                </div>
+                            }
+                            plugins={latest.plugins}
+                            prevPlugins={prev?.plugins}
+                            badgeColor="bg-indigo-100 text-indigo-700"
+                            actionBy={latest.actionBy} // 🔥 ส่งชื่อคนทำไปแสดง
                         />
                     );
                 })}
+
                 {(wpCompleted.length === 0 && spCompleted.length === 0) && (
-                    <div className="text-center py-10 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">No activity recorded yet.</div>
+                    <div className="text-center py-10 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
+                        No activity recorded yet.
+                    </div>
                 )}
               </div>
             </div>
+
           </div>
         </main>
       </div>
     </AppLayout>
   );
 }
+
+// --- Sub-Components ---
 
 function StatCard({ title, value, icon, color, bg }) {
   return (
@@ -205,7 +260,7 @@ function PendingRow({ name, type, url, typeColor }) {
     )
 }
 
-function CompletedCard({ name, type, date, note, versions, plugins, prevPlugins, badgeColor }) {
+function CompletedCard({ name, type, date, note, versions, plugins, prevPlugins, badgeColor, actionBy }) {
     const parsePlugins = (str) => {
         try {
             const parsed = JSON.parse(str);
@@ -231,13 +286,29 @@ function CompletedCard({ name, type, date, note, versions, plugins, prevPlugins,
                     <h3 className="font-bold text-gray-800 text-lg">{name}</h3>
                     <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${badgeColor}`}>{type}</span>
                 </div>
-                <span className="text-xs text-gray-400">{new Date(date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                <div className="text-right">
+                    <p className="text-xs text-gray-400">{new Date(date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                    {/* แสดงชื่อคนทำรายการ */}
+                    {actionBy && <p className="text-[10px] text-gray-400 mt-0.5">by {actionBy}</p>} 
+                </div>
             </div>
-            <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-600 font-mono mb-3 border border-gray-100">{versions}</div>
-            {note && (<div className="mb-3"><p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Update Note:</p><p className="text-sm text-gray-700 bg-yellow-50 p-2 rounded border border-yellow-100">{note}</p></div>)}
+
+            <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-600 font-mono mb-3 border border-gray-100">
+                {versions}
+            </div>
+
+            {note && (
+                <div className="mb-3">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Update Note:</p>
+                    <p className="text-sm text-gray-700 bg-yellow-50 p-2 rounded border border-yellow-100">{note}</p>
+                </div>
+            )}
+
             {updates.length > 0 ? (
                 <div className="mt-3 border-t border-gray-100 pt-2 bg-green-50/30 -mx-5 px-5 pb-3">
-                     <p className="text-[10px] font-bold text-green-700 uppercase mb-2 mt-2 flex items-center gap-1"><span className="text-sm">⚡</span> Plugin Updates</p>
+                     <p className="text-[10px] font-bold text-green-700 uppercase mb-2 mt-2 flex items-center gap-1">
+                        <span className="text-sm">⚡</span> Plugin Updates
+                     </p>
                      <ul className="space-y-1">
                         {updates.map((u, i) => (
                             <li key={i} className="text-xs text-gray-700 flex flex-wrap items-center gap-1.5">
@@ -252,7 +323,10 @@ function CompletedCard({ name, type, date, note, versions, plugins, prevPlugins,
                      </ul>
                 </div>
             ) : (
-                <div className="flex items-center gap-2 text-xs text-gray-400 border-t border-gray-100 pt-3 mt-1"><span className="w-1.5 h-1.5 rounded-full bg-gray-300"></span><span>{currentList.length} active plugins (No updates)</span></div>
+                <div className="flex items-center gap-2 text-xs text-gray-400 border-t border-gray-100 pt-3 mt-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-gray-300"></span>
+                    <span>{currentList.length} active plugins (No updates)</span>
+                </div>
             )}
         </div>
     )

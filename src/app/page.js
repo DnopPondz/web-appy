@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import AppLayout from "./components/AppLayout";
+import StatCard from "./components/StatCard"; // Import StatCard
+import { Icons } from "./components/Icons"; // Import Icons
 
 const styles = `
   @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
@@ -73,62 +75,54 @@ export default function Home() {
     <AppLayout>
       <style>{styles}</style>
       
-      {/* 1. Welcome Section */}
       <div className="mb-8 animate-fade-up">
         <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-        <p className="text-gray-500 mt-1">Welcome back, <span className="font-semibold text-blue-600">{session?.user?.name || "Admin"}</span>! Here's what's happening today.</p>
+        <p className="text-gray-500 mt-1">Welcome back, <span className="font-semibold text-blue-600">{session?.user?.name || "Admin"}</span>!</p>
       </div>
 
-      {/* 2. Stats Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10 animate-fade-up delay-100">
-        <div className={`p-6 rounded-2xl border shadow-sm flex items-center justify-between transition-transform hover:-translate-y-1 ${allPending.length > 0 ? 'bg-red-50 border-red-100' : 'bg-white border-gray-100'}`}>
-          <div>
-            <p className={`text-xs font-bold uppercase tracking-wider mb-1 ${allPending.length > 0 ? 'text-red-600' : 'text-gray-400'}`}>Attention Needed</p>
-            <p className={`text-4xl font-extrabold ${allPending.length > 0 ? 'text-red-700' : 'text-gray-800'}`}>{allPending.length}</p>
-            <p className="text-xs text-gray-500 mt-1">Sites require maintenance</p>
-          </div>
-          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shadow-inner ${allPending.length > 0 ? 'bg-red-200 text-red-600' : 'bg-green-100 text-green-600'}`}>
-            {allPending.length > 0 ? '🚨' : '✅'}
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between transition-transform hover:-translate-y-1">
-          <div>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Total Websites</p>
-            <p className="text-4xl font-extrabold text-gray-800">{totalSites}</p>
-            <p className="text-xs text-gray-500 mt-1">Across all platforms</p>
-          </div>
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl bg-blue-50 text-blue-600 shadow-inner">🌐</div>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between transition-transform hover:-translate-y-1">
-          <div>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Active Servers</p>
-            <p className="text-4xl font-extrabold text-gray-800">{allServers.size}</p>
-            <p className="text-xs text-gray-500 mt-1">Infrastructure nodes</p>
-          </div>
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl bg-indigo-50 text-indigo-600 shadow-inner">🖥️</div>
-        </div>
+        <StatCard 
+          title="Attention Needed" 
+          value={allPending.length} 
+          icon={allPending.length > 0 ? <Icons.AlertTriangle className="w-6 h-6" /> : <Icons.CheckCircle className="w-6 h-6" />}
+          color={allPending.length > 0 ? 'text-red-600' : 'text-green-600'} 
+          bg={allPending.length > 0 ? 'bg-red-50' : 'bg-green-50'} 
+        />
+        <StatCard 
+          title="Total Websites" 
+          value={totalSites} 
+          icon={<Icons.Globe className="w-6 h-6" />} 
+          color="text-blue-600" 
+          bg="bg-blue-50" 
+        />
+        <StatCard 
+          title="Active Servers" 
+          value={allServers.size} 
+          icon={<Icons.Server className="w-6 h-6" />} 
+          color="text-indigo-600" 
+          bg="bg-indigo-50" 
+        />
       </div>
 
-      {/* 3. Main Content Grid */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 animate-fade-up delay-200">
-        
-        {/* Left Column: Action List */}
         <div className="xl:col-span-2 space-y-6">
           <div className="flex justify-between items-center">
             <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
               ⚡ Tasks & Maintenance
-              {allPending.length > 0 && <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full">{allPending.length}</span>}
+              {allPending.length > 0 && <span className="bg-red-100 text-red-600 text-[10px] px-2 py-0.5 rounded-full font-bold">{allPending.length}</span>}
             </h2>
-            <Link href="/reports" className="text-xs font-semibold text-blue-600 hover:underline">View Full Report →</Link>
+            <Link href="/reports" className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1">
+              View Full Report <Icons.ExternalLink className="w-3 h-3" />
+            </Link>
           </div>
 
           <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
             {allPending.length === 0 ? (
               <div className="p-10 text-center flex flex-col items-center justify-center text-gray-400">
-                <div className="text-4xl mb-3">🎉</div>
-                <p>All systems are up to date.</p>
+                <div className="bg-green-50 text-green-500 w-16 h-16 rounded-full flex items-center justify-center mb-4">
+                  <Icons.CheckCircle className="w-8 h-8" />
+                </div>
+                <p className="font-medium text-gray-600">All systems are up to date.</p>
                 <p className="text-xs mt-1">Great job maintaining the infrastructure!</p>
               </div>
             ) : (
@@ -136,19 +130,21 @@ export default function Home() {
                 {allPending.map((site) => (
                   <div key={site.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition group">
                     <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${site.type === 'WP' ? 'bg-blue-100 text-blue-600' : 'bg-indigo-100 text-indigo-600'}`}>
-                        {site.type}
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${site.type === 'WP' ? 'bg-blue-50 text-blue-600' : 'bg-indigo-50 text-indigo-600'}`}>
+                        {site.type === 'WP' ? <Icons.WordPress className="w-5 h-5" /> : <Icons.SupportPal className="w-5 h-5" />}
                       </div>
                       <div className="min-w-0">
                         <h3 className="font-semibold text-gray-800 truncate">{site.name}</h3>
                         <p className="text-xs text-gray-500 flex items-center gap-2 truncate">
-                          {site.server} • <span className="text-red-500 font-medium">Due Now</span>
+                          <Icons.Server className="w-3 h-3" /> {site.server} 
+                          <span className="text-gray-300">•</span>
+                          <span className="text-red-500 font-medium">Due Now</span>
                         </p>
                       </div>
                     </div>
                     <Link 
                       href={site.url_path} 
-                      className="px-4 py-2 bg-white border border-gray-200 text-gray-600 text-xs font-bold uppercase rounded-lg hover:bg-blue-600 hover:text-white hover:border-transparent transition shadow-sm ml-2"
+                      className="px-4 py-2 bg-white border border-gray-200 text-gray-600 text-xs font-bold uppercase rounded-lg hover:bg-blue-600 hover:text-white hover:border-blue-600 transition shadow-sm ml-2"
                     >
                       Fix
                     </Link>
@@ -159,36 +155,49 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Right Column: Quick Links */}
         <div className="space-y-6">
           <h2 className="text-lg font-bold text-gray-800">Quick Actions</h2>
           <div className="grid grid-cols-1 gap-4">
-            <Link href="/wp" className="p-4 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl text-white shadow-lg shadow-blue-200 hover:shadow-blue-300 hover:-translate-y-1 transition flex items-center justify-between group">
-              <div>
-                <p className="font-bold">WordPress</p>
-                <p className="text-xs text-blue-100 opacity-80 mt-0.5">Manage WP Sites</p>
+            <Link href="/wp" className="p-4 bg-white border border-blue-100 rounded-xl shadow-sm hover:shadow-md hover:border-blue-300 transition flex items-center justify-between group">
+              <div className="flex items-center gap-3">
+                <div className="bg-blue-50 text-blue-600 w-10 h-10 rounded-lg flex items-center justify-center">
+                  <Icons.WordPress className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-bold text-gray-800">WordPress</p>
+                  <p className="text-xs text-gray-500">Manage WP Sites</p>
+                </div>
               </div>
-              <span className="bg-white/20 p-2 rounded-lg group-hover:bg-white/30 transition">→</span>
+              <span className="text-gray-400 group-hover:text-blue-500 transition">→</span>
             </Link>
 
-            <Link href="/sp" className="p-4 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-xl text-white shadow-lg shadow-indigo-200 hover:shadow-indigo-300 hover:-translate-y-1 transition flex items-center justify-between group">
-              <div>
-                <p className="font-bold">Support Pal</p>
-                <p className="text-xs text-indigo-100 opacity-80 mt-0.5">Manage SP Sites</p>
+            <Link href="/sp" className="p-4 bg-white border border-indigo-100 rounded-xl shadow-sm hover:shadow-md hover:border-indigo-300 transition flex items-center justify-between group">
+              <div className="flex items-center gap-3">
+                <div className="bg-indigo-50 text-indigo-600 w-10 h-10 rounded-lg flex items-center justify-center">
+                  <Icons.SupportPal className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-bold text-gray-800">Support Pal</p>
+                  <p className="text-xs text-gray-500">Manage SP Sites</p>
+                </div>
               </div>
-              <span className="bg-white/20 p-2 rounded-lg group-hover:bg-white/30 transition">→</span>
+              <span className="text-gray-400 group-hover:text-indigo-500 transition">→</span>
             </Link>
 
-            <Link href="/reports" className="p-4 bg-white border border-gray-200 rounded-xl text-gray-700 shadow-sm hover:border-gray-300 hover:bg-gray-50 transition flex items-center justify-between group">
-              <div>
-                <p className="font-bold">View Reports</p>
-                <p className="text-xs text-gray-400 mt-0.5">Summary & Logs</p>
+            <Link href="/reports" className="p-4 bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md hover:border-gray-300 transition flex items-center justify-between group">
+              <div className="flex items-center gap-3">
+                <div className="bg-gray-50 text-gray-600 w-10 h-10 rounded-lg flex items-center justify-center">
+                  <Icons.Dashboard className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-bold text-gray-800">Reports</p>
+                  <p className="text-xs text-gray-500">Summary & Logs</p>
+                </div>
               </div>
-              <span className="text-gray-400 group-hover:text-gray-600 transition">📊</span>
+              <span className="text-gray-400 group-hover:text-gray-600 transition">→</span>
             </Link>
           </div>
         </div>
-
       </div>
     </AppLayout>
   );
